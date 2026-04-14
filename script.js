@@ -7,7 +7,7 @@ let currentChatUserEmail = "";
 let messagePollInterval = null; 
 
 // ==========================================
-// PERSISTENT LOGIN & ON LOAD LOGIC
+// PERSISTENT LOGIN
 // ==========================================
 window.onload = function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -17,7 +17,6 @@ window.onload = function() {
         return;
     }
 
-    // Check Local Storage for persistent login
     const savedEmail = localStorage.getItem('chatUserEmail');
     const savedName = localStorage.getItem('chatUserName');
 
@@ -82,11 +81,8 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
         if(data.status === 'success') {
             currentUserEmail = email;
             currentUserName = data.username;
-            
-            // Save to local storage
             localStorage.setItem('chatUserEmail', currentUserEmail);
             localStorage.setItem('chatUserName', currentUserName);
-            
             loginSuccess();
         } else {
             msg.textContent = data.message;
@@ -99,11 +95,10 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
     });
 });
 
-// LOGOUT LOGIC
 function logoutUser() {
     localStorage.removeItem('chatUserEmail');
     localStorage.removeItem('chatUserName');
-    window.location.reload(); // Reload page to reset state
+    window.location.reload(); 
 }
 
 function loginSuccess() {
@@ -113,9 +108,8 @@ function loginSuccess() {
     appScreen.classList.remove('hidden'); 
     appScreen.classList.add('active');
     
-    document.getElementById('my-profile-name').innerHTML = `<i class="fa-solid fa-user-check" style="color:var(--g-blue)"></i> ${currentUserName}`;
+    document.getElementById('my-profile-name').innerHTML = `<i class="fa-solid fa-circle-user"></i> <span>${currentUserName}</span>`;
     window.history.replaceState({}, document.title, "/");
-    
     fetchUsersList();
 }
 
@@ -144,13 +138,13 @@ function fetchUsersList() {
                 listContainer.insertAdjacentHTML('beforeend', item);
             });
         } else {
-            listContainer.innerHTML = '<p style="padding:10px; color:#9aa0a6; font-size:13px;">No active users yet.</p>';
+            listContainer.innerHTML = '<p class="loading-text">No active users yet.</p>';
         }
     });
 }
 
 // ==========================================
-// CHAT UI & RESPONSIVENESS
+// CHAT UI CONTROLS
 // ==========================================
 const emptyState = document.getElementById('empty-state');
 const chatArea = document.getElementById('chat-area');
@@ -161,34 +155,35 @@ const msgInput = document.getElementById('message-input');
 const mainContainer = document.getElementById('main-container');
 
 function showUsersList() {
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar-menu .menu-item')[0].classList.add('active');
     emptyState.classList.remove('hidden');
     chatArea.classList.add('hidden');
     requestsArea.classList.add('hidden');
     clearInterval(messagePollInterval);
-    closeChatMobile(); // Return to sidebar on mobile
+    closeChatMobile(); 
 }
 
 function showRequests() {
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar-menu .menu-item')[1].classList.add('active');
     emptyState.classList.add('hidden');
     chatArea.classList.add('hidden');
     requestsArea.classList.remove('hidden');
     clearInterval(messagePollInterval);
-    mainContainer.classList.add('chat-active'); // Trigger mobile view
+    mainContainer.classList.add('chat-active'); 
 }
 
 function openChat(targetEmail, targetName) {
     emptyState.classList.add('hidden');
     requestsArea.classList.add('hidden');
     chatArea.classList.remove('hidden');
-    
-    // Trigger mobile responsive class
     mainContainer.classList.add('chat-active');
     
     activeChatName.textContent = targetName;
     currentChatUserEmail = targetEmail;
     
-    chatMessages.innerHTML = '<div style="text-align:center; padding:20px; color:#9aa0a6;">Loading messages...</div>';
-    
+    chatMessages.innerHTML = '<p class="loading-text">Loading messages...</p>';
     fetchMessages();
     
     if(messagePollInterval) clearInterval(messagePollInterval);
@@ -200,26 +195,22 @@ function closeChatMobile() {
     clearInterval(messagePollInterval);
 }
 
-// Auto-resize Textarea
+// TEXTAREA RESIZE & ENTER LOGIC
 msgInput.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
 });
 
-// ENTER vs SHIFT+ENTER LOGIC
 msgInput.addEventListener('keydown', function (e) {
-    // Detect mobile screen width
     const isMobile = window.innerWidth <= 768;
-    
     if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
-        e.preventDefault(); // Prevent new line on desktop
+        e.preventDefault(); 
         sendMessage();
     }
-    // If mobile or Shift+Enter, let the default new line happen naturally
 });
 
 // ==========================================
-// FETCH MESSAGES & READ RECEIPTS (Blue Ticks)
+// FETCH MESSAGES & RENDER
 // ==========================================
 function fetchMessages() {
     if(!currentChatUserEmail) return;
@@ -238,32 +229,34 @@ function fetchMessages() {
         if(data.status === 'success') {
             chatMessages.innerHTML = '';
             if(data.data.length === 0) {
-                chatMessages.innerHTML = `<div style="text-align:center; color:#9aa0a6; margin-top:20px;">Say Hi to ${activeChatName.textContent}!</div>`;
+                chatMessages.innerHTML = `<div class="loading-text" style="background:var(--panel-bg); border-radius:10px; align-self:center; margin-top:20px;">🔒 Messages are end-to-end encrypted. Say Hi!</div>`;
             } else {
                 data.data.forEach(msg => {
                     const isMe = msg.sender === currentUserEmail;
-                    const msgClass = isMe ? 'msg sent' : 'msg';
+                    const msgClass = isMe ? 'msg sent' : 'msg received';
                     const timeOnly = msg.timestamp.split(' ')[1]; 
                     
-                    // Render Status Ticks only for messages I sent
                     let statusIcon = '';
                     if (isMe) {
                         if (msg.status === 'read') {
-                            statusIcon = '<i class="fa-solid fa-check-double" style="color:#8ab4f8; margin-left:5px;"></i>'; // Blue ticks
+                            statusIcon = '<i class="fa-solid fa-check-double" style="color:#53bdeb;"></i>'; // Blue ticks
                         } else {
-                            statusIcon = '<i class="fa-solid fa-check" style="color:#9aa0a6; margin-left:5px;"></i>'; // Single gray tick
+                            statusIcon = '<i class="fa-solid fa-check"></i>'; // Gray tick
                         }
                     }
                     
+                    // Separated content and meta for premium layout
                     const html = `
                         <div class="${msgClass}">
-                            ${msg.message}
-                            <span class="msg-time">${timeOnly} ${statusIcon}</span>
+                            <div class="msg-content">${msg.message}</div>
+                            <div class="msg-meta">
+                                <span>${timeOnly}</span>
+                                ${statusIcon}
+                            </div>
                         </div>
                     `;
                     chatMessages.insertAdjacentHTML('beforeend', html);
                 });
-                // Auto scroll
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         }
@@ -278,11 +271,20 @@ function sendMessage() {
     if(text === "" || !currentChatUserEmail) return;
 
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const tempHtml = `<div class="msg sent" style="opacity:0.7">${text}<span class="msg-time">${timeNow} <i class="fa-solid fa-clock"></i></span></div>`;
+    
+    // Premium optimistic UI rendering
+    const tempHtml = `
+        <div class="msg sent" style="opacity:0.8">
+            <div class="msg-content">${text}</div>
+            <div class="msg-meta">
+                <span>${timeNow}</span>
+                <i class="fa-regular fa-clock"></i>
+            </div>
+        </div>
+    `;
     chatMessages.insertAdjacentHTML('beforeend', tempHtml);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
-    // Reset textarea
     msgInput.value = "";
     msgInput.style.height = 'auto';
 
