@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat App - Professional</title>
+    <title>Chat App - Premium</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
     <div id="auth-screen" class="screen active">
-        <div class="auth-box">
+        <div class="glass-panel">
             <div class="auth-tabs">
                 <button class="tab-btn active" onclick="switchAuthTab('login')">Login</button>
                 <button class="tab-btn" onclick="switchAuthTab('register')">Register</button>
@@ -40,52 +40,63 @@
     </div>
 
     <div id="app-screen" class="screen hidden">
-        <div class="gchat-container" id="main-container">
+        <div class="app-container" id="main-container">
             
-            <div class="gchat-sidebar">
+            <div class="sidebar">
                 <div class="sidebar-header">
                     <div class="user-profile" id="my-profile-name">
-                        <i class="fa-solid fa-user-check" style="color:var(--g-blue)"></i> User
+                        <i class="fa-solid fa-circle-user"></i> <span>User</span>
                     </div>
-                    <i class="fa-solid fa-right-from-bracket logout-btn" onclick="logoutUser()" title="Logout"></i>
+                    <i class="fa-solid fa-arrow-right-from-bracket logout-btn" onclick="logoutUser()" title="Logout"></i>
                 </div>
-                <div style="padding: 0 10px 10px;">
-                    <button class="new-chat-btn" onclick="openInviteModal()" style="width:100%"><i class="fa-solid fa-plus"></i> Invite User</button>
+                
+                <div class="sidebar-search">
+                    <button class="btn-invite" onclick="openInviteModal()"><i class="fa-solid fa-user-plus"></i> Invite New User</button>
                 </div>
                 
                 <div class="sidebar-menu">
                     <div class="menu-item active" onclick="showUsersList()"><i class="fa-solid fa-users"></i> All Users</div>
-                    <div class="menu-item request-badge" onclick="showRequests()"><i class="fa-solid fa-user-plus"></i> Invites <span class="badge">0</span></div>
+                    <div class="menu-item request-badge" onclick="showRequests()"><i class="fa-solid fa-envelope"></i> Invites <span class="badge">0</span></div>
                 </div>
 
-                <div class="direct-messages">
-                    <p class="section-title"><i class="fa-solid fa-caret-down"></i> Active Users</p>
-                    <div class="chat-list" id="chat-list-container">
-                        <p style="padding:10px; color:#9aa0a6; font-size:13px;">Loading users...</p>
-                    </div>
+                <div class="chat-list" id="chat-list-container">
+                    <p class="loading-text">Loading users...</p>
                 </div>
             </div>
 
-            <div class="gchat-main">
+            <div class="chat-area-container">
                 <div id="empty-state" class="empty-state">
-                    <img src="https://www.gstatic.com/dynamite/images/zero_state_2x.png" alt="Empty" style="width: 250px; opacity: 0.8; border-radius: 10px;">
-                    <p>Select a user to start chatting.</p>
+                    <div class="empty-icon"><i class="fa-brands fa-whatsapp"></i></div>
+                    <h2>WhatsApp Web Clone</h2>
+                    <p>Select a user from the sidebar to start a premium chat experience.</p>
                 </div>
 
                 <div id="chat-area" class="chat-area hidden">
                     <header class="chat-header">
                         <div class="chat-title">
                             <i class="fa-solid fa-arrow-left back-btn" onclick="closeChatMobile()"></i>
-                            <span id="active-chat-name">Select a chat</span>
-                            <span class="status-indicator"></span>
+                            <div class="avatar"><i class="fa-solid fa-user"></i></div>
+                            <div class="user-info">
+                                <h4 id="active-chat-name">Select a chat</h4>
+                                <span class="status">Online</span>
+                            </div>
+                        </div>
+                        <div class="header-icons">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
                         </div>
                     </header>
+                    
                     <div class="chat-messages" id="chat-messages">
                         </div>
-                    <div class="chat-input-box">
-                        <i class="fa-solid fa-plus"></i>
-                        <textarea id="message-input" rows="1" placeholder="Type a message..."></textarea>
-                        <i class="fa-solid fa-paper-plane send-btn-icon" id="send-icon" onclick="sendMessage()" style="color:var(--g-blue)"></i>
+                    
+                    <div class="chat-input-area">
+                        <i class="fa-regular fa-face-smile"></i>
+                        <i class="fa-solid fa-paperclip"></i>
+                        <textarea id="message-input" rows="1" placeholder="Type a message"></textarea>
+                        <div class="send-btn-circle" id="send-icon" onclick="sendMessage()">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
                     </div>
                 </div>
 
@@ -93,11 +104,11 @@
                     <header class="chat-header">
                         <div class="chat-title">
                             <i class="fa-solid fa-arrow-left back-btn" onclick="closeChatMobile()"></i>
-                            <span>Pending Invites</span>
+                            <h4>Pending Invites</h4>
                         </div>
                     </header>
-                    <div id="requests-list" style="padding: 20px;">
-                        <p style="color: #9aa0a6; font-size: 14px;">No new requests.</p>
+                    <div id="requests-list" class="p-20">
+                        <p class="loading-text">No new requests.</p>
                     </div>
                 </div>
             </div>
@@ -105,7 +116,7 @@
     </div>
 
     <div id="invite-modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content glass-panel">
             <h3>Invite a friend</h3>
             <p>Enter email ID to send a chat request link</p>
             <input type="email" id="invite-email" placeholder="friend@example.com">
