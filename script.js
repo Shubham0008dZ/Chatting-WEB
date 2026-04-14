@@ -1,10 +1,11 @@
 // ==========================================
 // CONFIGURATION
 // ==========================================
-// 1. Apna naya Google Apps Script URL yaha dalein
-const scriptURL = 'https://script.google.com/macros/s/AKfycbwTbzIlQDwFuFh7pBFM_xsOHeJkNBa-nlNBEs__j0377rak2zHW-IwbEDgUuM-HOJx3/exec'; 
-// 2. Apni Netlify website ka URL yaha dalein (For Email Links)
-const frontendURL = 'https://wondrous-frangollo-ad2a42.netlify.app/';
+// User API URL
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwTbzIlQDwFuFh7pBFM_xsOHeJkNBa-nlNBEs__j0377rak2zHW-IwbEDgUuM-HOJx3/exec';
+
+// IMPORTANT: Apna Netlify URL yaha daal dena
+const frontendURL = 'https://wondrous-frangollo-ad2a42.netlify.app'; 
 
 let currentUserEmail = ""; 
 let currentUserName = "";
@@ -17,12 +18,11 @@ window.onload = function() {
     const verifyEmail = urlParams.get('verify');
     
     if (verifyEmail) {
-        document.getElementById('login-form').classList.add('hidden');
-        document.getElementById('register-form').classList.add('hidden');
+        document.getElementById('login-form').classList.remove('active');
+        document.getElementById('register-form').classList.remove('active');
         document.querySelector('.auth-tabs').classList.add('hidden');
         document.getElementById('verify-loader').classList.remove('hidden');
         
-        // Backend ko bolo account verify kare
         fetch(scriptURL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -33,39 +33,46 @@ window.onload = function() {
             if(data.status === 'success') {
                 alert("Account Verified Successfully!");
                 currentUserEmail = verifyEmail;
+                currentUserName = "Verified User"; // Default until profile fetch
                 loginSuccess();
             } else {
                 alert("Verification failed: " + data.message);
-                window.location.href = "/"; // Reload
+                window.location.href = "/"; // Reload clear URL
             }
+        }).catch(err => {
+            alert("Network Error during verification.");
+            window.location.href = "/";
         });
     }
 };
 
 // ==========================================
-// AUTH UI LOGIC
+// AUTH UI LOGIC (Fixed Tab Switching)
 // ==========================================
 function switchAuthTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.auth-form').forEach(form => form.classList.add('hidden'));
+    document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
     
     if(tab === 'login') {
         document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('login-form').classList.remove('hidden');
+        document.getElementById('login-form').classList.add('active');
     } else {
         document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('register-form').classList.remove('hidden');
+        document.getElementById('register-form').classList.add('active');
     }
 }
 
-// REGISTER FUNCTION
+// ==========================================
+// REGISTRATION FUNCTION
+// ==========================================
 document.getElementById('register-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const btn = document.getElementById('reg-submit-btn');
-    const email = document.getElementById('reg-email').value;
-    const username = document.getElementById('reg-username').value;
+    const email = document.getElementById('reg-email').value.trim();
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value; 
     
-    btn.innerHTML = 'Sending...'; btn.disabled = true;
+    btn.innerHTML = 'Sending Verification...'; btn.disabled = true;
 
     fetch(scriptURL, {
         method: 'POST',
@@ -74,30 +81,76 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
             action: "register", 
             email: email, 
             username: username,
-            frontendUrl: frontendURL // Send this so backend knows where to link back
+            password: password, 
+            frontendUrl: frontendURL
         })
-    }).then(() => {
+    })
+    .then(res => res.json())
+    .then(data => {
         btn.classList.add('hidden');
-        document.getElementById('reg-msg').classList.remove('hidden');
+        const msg = document.getElementById('reg-msg');
+        msg.classList.remove('hidden');
+        msg.style.color = "var(--g-green)";
+        msg.textContent = "Verification link sent to your email!";
+    }).catch(err => {
+        btn.innerHTML = 'Register & Send Link'; btn.disabled = false;
+        alert("Error sending request.");
     });
 });
 
-// LOGIN FUNCTION (Mock for now, assumes user is verified)
+// ==========================================
+// REAL LOGIN FUNCTION
+// ==========================================
 document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    currentUserEmail = document.getElementById('login-email').value;
-    loginSuccess();
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value; 
+    const btn = document.getElementById('login-submit-btn');
+    const msg = document.getElementById('login-msg');
+
+    btn.innerHTML = 'Verifying...'; btn.disabled = true;
+    msg.classList.add('hidden'); 
+
+    fetch(scriptURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ 
+            action: "login", 
+            email: email, 
+            password: password 
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.innerHTML = 'Login'; btn.disabled = false;
+        
+        if(data.status === 'success') {
+            currentUserEmail = email;
+            currentUserName = data.username;
+            document.getElementById('active-chat-name').textContent = "Welcome, " + currentUserName; 
+            loginSuccess();
+        } else {
+            msg.textContent = data.message;
+            msg.classList.remove('hidden');
+            msg.style.color = "#f28b82"; 
+        }
+    }).catch(error => {
+        btn.innerHTML = 'Login'; btn.disabled = false;
+        msg.textContent = "Network error. Try again.";
+        msg.classList.remove('hidden');
+        msg.style.color = "#f28b82";
+    });
 });
 
 function loginSuccess() {
     document.getElementById('auth-screen').classList.remove('active');
     document.getElementById('app-screen').classList.add('active');
-    // Clean URL so refresh doesn't trigger verification again
-    window.history.replaceState({}, document.title, "/");
+    window.history.replaceState({}, document.title, "/"); // Clean URL bar
 }
 
+
 // ==========================================
-// CHAT & INVITE LOGIC (Old logic preserved + expanded)
+// CHAT & INVITE UI LOGIC 
 // ==========================================
 const emptyState = document.getElementById('empty-state');
 const chatArea = document.getElementById('chat-area');
@@ -107,7 +160,6 @@ const chatMessages = document.getElementById('chat-messages');
 const msgInput = document.getElementById('message-input');
 const inviteModal = document.getElementById('invite-modal');
 
-// Old Logic Kept Intact
 function openChat(name, initialMsg) {
     emptyState.classList.add('hidden');
     requestsArea.classList.add('hidden');
@@ -122,7 +174,6 @@ function openChat(name, initialMsg) {
     `;
 }
 
-// Old Logic Kept Intact
 function closeChat() {
     chatArea.classList.add('hidden');
     emptyState.classList.remove('hidden');
@@ -135,15 +186,21 @@ function showRequests() {
 }
 
 function openInviteModal() { inviteModal.classList.remove('hidden'); }
-function closeInviteModal() { inviteModal.classList.add('hidden'); document.getElementById('invite-msg').classList.add('hidden'); }
+function closeInviteModal() { 
+    inviteModal.classList.add('hidden'); 
+    document.getElementById('invite-msg').classList.add('hidden'); 
+    document.getElementById('invite-email').value = "";
+}
 
-// NEW LOGIC: Send Invitation
+// ==========================================
+// SEND CHAT INVITATION LOGIC
+// ==========================================
 function sendInvite() {
-    const targetEmail = document.getElementById('invite-email').value;
+    const targetEmail = document.getElementById('invite-email').value.trim();
     const btn = document.querySelector('.modal-actions .btn-primary');
     if(!targetEmail) return;
 
-    btn.innerHTML = 'Sending...';
+    btn.innerHTML = 'Sending...'; btn.disabled = true;
     
     fetch(scriptURL, {
         method: 'POST',
@@ -152,18 +209,25 @@ function sendInvite() {
             action: "invite", 
             targetEmail: targetEmail,
             fromEmail: currentUserEmail,
-            fromName: "Current User", // Aap isko state se le sakte hain
+            fromName: currentUserName,
             frontendUrl: frontendURL
         })
-    }).then(() => {
-        btn.innerHTML = 'Send Request';
+    }).then(res => res.json())
+    .then(data => {
+        btn.innerHTML = 'Send Request'; btn.disabled = false;
         document.getElementById('invite-msg').textContent = "Invitation sent to " + targetEmail;
         document.getElementById('invite-msg').classList.remove('hidden');
-        setTimeout(closeInviteModal, 2000);
+        document.getElementById('invite-msg').style.color = "var(--g-green)";
+        setTimeout(closeInviteModal, 2500);
+    }).catch(err => {
+        btn.innerHTML = 'Send Request'; btn.disabled = false;
+        alert("Failed to send invite.");
     });
 }
 
-// Old Send Message Logic
+// ==========================================
+// SEND MESSAGE LOGIC
+// ==========================================
 function sendMessage() {
     const text = msgInput.value.trim();
     if(text === "") return;
@@ -175,6 +239,7 @@ function sendMessage() {
             <span class="msg-time">${time}</span>
         </div>
     `;
+    
     chatMessages.insertAdjacentHTML('beforeend', msgHTML);
     msgInput.value = "";
     chatMessages.scrollTop = chatMessages.scrollHeight;
