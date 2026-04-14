@@ -2,9 +2,9 @@
 // CONFIGURATION
 // ==========================================
 // 1. Apna naya Google Apps Script URL yaha dalein
-const scriptURL = 'YOUR_NEW_GOOGLE_SCRIPT_URL_HERE'; 
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwTbzIlQDwFuFh7pBFM_xsOHeJkNBa-nlNBEs__j0377rak2zHW-IwbEDgUuM-HOJx3/exec'; 
 // 2. Apni Netlify website ka URL yaha dalein (For Email Links)
-const frontendURL = 'https://your-netlify-site-name.netlify.app';
+const frontendURL = 'https://wondrous-frangollo-ad2a42.netlify.app/';
 
 let currentUserEmail = ""; 
 let currentUserName = "";
