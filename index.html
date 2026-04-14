@@ -40,12 +40,17 @@
     </div>
 
     <div id="app-screen" class="screen hidden">
-        <div class="gchat-container">
+        <div class="gchat-container" id="main-container">
             
             <div class="gchat-sidebar">
                 <div class="sidebar-header">
-                    <div class="user-profile" id="my-profile-name"><i class="fa-solid fa-bars"></i> Chat</div>
-                    <button class="new-chat-btn" onclick="openInviteModal()"><i class="fa-solid fa-plus"></i> Invite User</button>
+                    <div class="user-profile" id="my-profile-name">
+                        <i class="fa-solid fa-user-check" style="color:var(--g-blue)"></i> User
+                    </div>
+                    <i class="fa-solid fa-right-from-bracket logout-btn" onclick="logoutUser()" title="Logout"></i>
+                </div>
+                <div style="padding: 0 10px 10px;">
+                    <button class="new-chat-btn" onclick="openInviteModal()" style="width:100%"><i class="fa-solid fa-plus"></i> Invite User</button>
                 </div>
                 
                 <div class="sidebar-menu">
@@ -64,12 +69,13 @@
             <div class="gchat-main">
                 <div id="empty-state" class="empty-state">
                     <img src="https://www.gstatic.com/dynamite/images/zero_state_2x.png" alt="Empty" style="width: 250px; opacity: 0.8; border-radius: 10px;">
-                    <p>Select a user from the left to start chatting.</p>
+                    <p>Select a user to start chatting.</p>
                 </div>
 
                 <div id="chat-area" class="chat-area hidden">
                     <header class="chat-header">
                         <div class="chat-title">
+                            <i class="fa-solid fa-arrow-left back-btn" onclick="closeChatMobile()"></i>
                             <span id="active-chat-name">Select a chat</span>
                             <span class="status-indicator"></span>
                         </div>
@@ -78,14 +84,19 @@
                         </div>
                     <div class="chat-input-box">
                         <i class="fa-solid fa-plus"></i>
-                        <input type="text" id="message-input" placeholder="Type a message...">
-                        <i class="fa-solid fa-paper-plane" id="send-icon" onclick="sendMessage()" style="color:var(--g-blue)"></i>
+                        <textarea id="message-input" rows="1" placeholder="Type a message..."></textarea>
+                        <i class="fa-solid fa-paper-plane send-btn-icon" id="send-icon" onclick="sendMessage()" style="color:var(--g-blue)"></i>
                     </div>
                 </div>
 
                 <div id="requests-area" class="requests-area hidden">
-                    <h2>Pending Invites</h2>
-                    <div id="requests-list">
+                    <header class="chat-header">
+                        <div class="chat-title">
+                            <i class="fa-solid fa-arrow-left back-btn" onclick="closeChatMobile()"></i>
+                            <span>Pending Invites</span>
+                        </div>
+                    </header>
+                    <div id="requests-list" style="padding: 20px;">
                         <p style="color: #9aa0a6; font-size: 14px;">No new requests.</p>
                     </div>
                 </div>
@@ -96,7 +107,7 @@
     <div id="invite-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Invite a friend</h3>
-            <p>Enter email ID to send a chat request link via Email</p>
+            <p>Enter email ID to send a chat request link</p>
             <input type="email" id="invite-email" placeholder="friend@example.com">
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeInviteModal()">Cancel</button>
