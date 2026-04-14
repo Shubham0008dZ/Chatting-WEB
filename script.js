@@ -3,14 +3,28 @@ const frontendURL = 'https://wondrous-frangollo-ad2a42.netlify.app';
 
 let currentUserEmail = ""; 
 let currentUserName = "";
-let currentChatUserEmail = ""; // Naya variable target user ke liye
-let messagePollInterval = null; // Auto-refresh ke liye
+let currentChatUserEmail = ""; 
+let messagePollInterval = null; 
 
+// ==========================================
+// PERSISTENT LOGIN & ON LOAD LOGIC
+// ==========================================
 window.onload = function() {
     const urlParams = new URLSearchParams(window.location.search);
     const verifyEmail = urlParams.get('verify');
     if (verifyEmail) {
         document.getElementById('verify-loader')?.classList.remove('hidden');
+        return;
+    }
+
+    // Check Local Storage for persistent login
+    const savedEmail = localStorage.getItem('chatUserEmail');
+    const savedName = localStorage.getItem('chatUserName');
+
+    if (savedEmail && savedName) {
+        currentUserEmail = savedEmail;
+        currentUserName = savedName;
+        loginSuccess();
     }
 };
 
@@ -68,6 +82,11 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
         if(data.status === 'success') {
             currentUserEmail = email;
             currentUserName = data.username;
+            
+            // Save to local storage
+            localStorage.setItem('chatUserEmail', currentUserEmail);
+            localStorage.setItem('chatUserName', currentUserName);
+            
             loginSuccess();
         } else {
             msg.textContent = data.message;
@@ -80,6 +99,13 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
     });
 });
 
+// LOGOUT LOGIC
+function logoutUser() {
+    localStorage.removeItem('chatUserEmail');
+    localStorage.removeItem('chatUserName');
+    window.location.reload(); // Reload page to reset state
+}
+
 function loginSuccess() {
     document.getElementById('auth-screen').classList.remove('active');
     document.getElementById('auth-screen').classList.add('hidden');
@@ -90,12 +116,11 @@ function loginSuccess() {
     document.getElementById('my-profile-name').innerHTML = `<i class="fa-solid fa-user-check" style="color:var(--g-blue)"></i> ${currentUserName}`;
     window.history.replaceState({}, document.title, "/");
     
-    // Jaise hi login ho, baaki verified users ko mangwa lo
     fetchUsersList();
 }
 
 // ==========================================
-// NEW LOGIC: FETCH USERS FOR SIDEBAR
+// FETCH USERS FOR SIDEBAR
 // ==========================================
 function fetchUsersList() {
     fetch(scriptURL, {
@@ -106,7 +131,7 @@ function fetchUsersList() {
     .then(res => res.json())
     .then(data => {
         const listContainer = document.getElementById('chat-list-container');
-        listContainer.innerHTML = ''; // Purana loading text hatao
+        listContainer.innerHTML = ''; 
         
         if(data.status === 'success' && data.data.length > 0) {
             data.data.forEach(user => {
@@ -119,13 +144,13 @@ function fetchUsersList() {
                 listContainer.insertAdjacentHTML('beforeend', item);
             });
         } else {
-            listContainer.innerHTML = '<p style="padding:10px; color:#9aa0a6; font-size:13px;">No other users found.</p>';
+            listContainer.innerHTML = '<p style="padding:10px; color:#9aa0a6; font-size:13px;">No active users yet.</p>';
         }
     });
 }
 
 // ==========================================
-// NEW LOGIC: CHAT INTERACTION & FETCH MESSAGES
+// CHAT UI & RESPONSIVENESS
 // ==========================================
 const emptyState = document.getElementById('empty-state');
 const chatArea = document.getElementById('chat-area');
@@ -133,12 +158,14 @@ const requestsArea = document.getElementById('requests-area');
 const activeChatName = document.getElementById('active-chat-name');
 const chatMessages = document.getElementById('chat-messages');
 const msgInput = document.getElementById('message-input');
+const mainContainer = document.getElementById('main-container');
 
 function showUsersList() {
     emptyState.classList.remove('hidden');
     chatArea.classList.add('hidden');
     requestsArea.classList.add('hidden');
-    clearInterval(messagePollInterval); // Stop auto-refresh if not in chat
+    clearInterval(messagePollInterval);
+    closeChatMobile(); // Return to sidebar on mobile
 }
 
 function showRequests() {
@@ -146,25 +173,54 @@ function showRequests() {
     chatArea.classList.add('hidden');
     requestsArea.classList.remove('hidden');
     clearInterval(messagePollInterval);
+    mainContainer.classList.add('chat-active'); // Trigger mobile view
 }
 
 function openChat(targetEmail, targetName) {
     emptyState.classList.add('hidden');
     requestsArea.classList.add('hidden');
     chatArea.classList.remove('hidden');
+    
+    // Trigger mobile responsive class
+    mainContainer.classList.add('chat-active');
+    
     activeChatName.textContent = targetName;
     currentChatUserEmail = targetEmail;
     
     chatMessages.innerHTML = '<div style="text-align:center; padding:20px; color:#9aa0a6;">Loading messages...</div>';
     
-    // Pehli baar messages lao
     fetchMessages();
     
-    // Uske baad har 3 seconds me naye messages check karo (Live Chat Logic)
     if(messagePollInterval) clearInterval(messagePollInterval);
     messagePollInterval = setInterval(fetchMessages, 3000);
 }
 
+function closeChatMobile() {
+    mainContainer.classList.remove('chat-active');
+    clearInterval(messagePollInterval);
+}
+
+// Auto-resize Textarea
+msgInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+});
+
+// ENTER vs SHIFT+ENTER LOGIC
+msgInput.addEventListener('keydown', function (e) {
+    // Detect mobile screen width
+    const isMobile = window.innerWidth <= 768;
+    
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+        e.preventDefault(); // Prevent new line on desktop
+        sendMessage();
+    }
+    // If mobile or Shift+Enter, let the default new line happen naturally
+});
+
+// ==========================================
+// FETCH MESSAGES & READ RECEIPTS (Blue Ticks)
+// ==========================================
 function fetchMessages() {
     if(!currentChatUserEmail) return;
 
@@ -187,38 +243,49 @@ function fetchMessages() {
                 data.data.forEach(msg => {
                     const isMe = msg.sender === currentUserEmail;
                     const msgClass = isMe ? 'msg sent' : 'msg';
-                    // Splitting DD-MM-YYYY HH:MM to show only time nicely
                     const timeOnly = msg.timestamp.split(' ')[1]; 
+                    
+                    // Render Status Ticks only for messages I sent
+                    let statusIcon = '';
+                    if (isMe) {
+                        if (msg.status === 'read') {
+                            statusIcon = '<i class="fa-solid fa-check-double" style="color:#8ab4f8; margin-left:5px;"></i>'; // Blue ticks
+                        } else {
+                            statusIcon = '<i class="fa-solid fa-check" style="color:#9aa0a6; margin-left:5px;"></i>'; // Single gray tick
+                        }
+                    }
                     
                     const html = `
                         <div class="${msgClass}">
                             ${msg.message}
-                            <span class="msg-time">${timeOnly}</span>
+                            <span class="msg-time">${timeOnly} ${statusIcon}</span>
                         </div>
                     `;
                     chatMessages.insertAdjacentHTML('beforeend', html);
                 });
-                chatMessages.scrollTop = chatMessages.scrollHeight; // Auto scroll to bottom
+                // Auto scroll
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         }
     });
 }
 
 // ==========================================
-// NEW LOGIC: SEND MESSAGE TO DATABASE
+// SEND MESSAGE
 // ==========================================
 function sendMessage() {
     const text = msgInput.value.trim();
     if(text === "" || !currentChatUserEmail) return;
 
-    // Temporary dikhane ke liye (optimistic UI update)
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const tempHtml = `<div class="msg sent" style="opacity:0.7">${text}<span class="msg-time">${timeNow}</span></div>`;
+    const tempHtml = `<div class="msg sent" style="opacity:0.7">${text}<span class="msg-time">${timeNow} <i class="fa-solid fa-clock"></i></span></div>`;
     chatMessages.insertAdjacentHTML('beforeend', tempHtml);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Reset textarea
     msgInput.value = "";
+    msgInput.style.height = 'auto';
 
-    // Backend me bhejo
     fetch(scriptURL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -229,14 +296,9 @@ function sendMessage() {
             message: text
         })
     }).then(() => {
-        // Successful hone pe original chat fetch kar lo
         fetchMessages();
     });
 }
-
-msgInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') { sendMessage(); }
-});
 
 // ==========================================
 // INVITE LOGIC
