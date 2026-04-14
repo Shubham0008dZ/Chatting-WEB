@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Account & Set Password</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Same Google Chat Dark Theme Styling */
+        :root {
+            --g-bg: #202124; --g-sidebar: #2c2d30; --g-hover: #3c4043;
+            --g-text: #e8eaed; --g-text-muted: #9aa0a6; --g-border: #5f6368;
+            --g-blue: #8ab4f8; --g-green: #1e8e3e; --g-input: #303134;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+        body { background-color: var(--g-bg); color: var(--g-text); height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .auth-box { background: var(--g-sidebar); padding: 30px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid #3c4043; }
+        h3 { margin-bottom: 10px; color: var(--g-blue); }
+        p.desc { font-size: 14px; color: var(--g-text-muted); margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; background: var(--g-input); border: 1px solid var(--g-border); color: white; border-radius: 6px; outline: none; margin-bottom: 15px; }
+        .btn-primary { width: 100%; background: var(--g-blue); color: #202124; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .hidden { display: none !important; }
+        .success-msg { color: var(--g-green); font-size: 14px; margin-top: 15px; }
+        .error-msg { color: #f28b82; font-size: 14px; margin-top: 15px; }
+        #email-display { font-weight: bold; color: var(--g-text); }
+        .back-btn { display: inline-block; margin-top: 15px; color: var(--g-blue); text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-box">
+        <h3>Account Verification</h3>
+        <p class="desc">Setting password for <br><span id="email-display">Loading...</span></p>
+        
+        <form id="set-password-form">
+            <input type="password" id="new-password" placeholder="Enter New Password" required minlength="6">
+            <input type="password" id="confirm-password" placeholder="Confirm Password" required minlength="6">
+            <button type="submit" class="btn-primary" id="verify-btn">Set Password & Verify</button>
+            <p id="msg" class="hidden"></p>
+        </form>
+
+        <a href="index.html" id="login-link" class="back-btn hidden">Go to Login</a>
+    </div>
+
+    <script>
+        // Apni API URL yaha daalo
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwTbzIlQDwFuFh7pBFM_xsOHeJkNBa-nlNBEs__j0377rak2zHW-IwbEDgUuM-HOJx3/exec';
+        
+        // URL se email nikalna
+        const urlParams = new URLSearchParams(window.location.search);
+        const userEmail = urlParams.get('verify');
+        
+        if (userEmail) {
+            document.getElementById('email-display').textContent = userEmail;
+        } else {
+            document.getElementById('email-display').textContent = "No Email Found";
+            document.getElementById('verify-btn').disabled = true;
+        }
+
+        document.getElementById('set-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newPass = document.getElementById('new-password').value;
+            const confPass = document.getElementById('confirm-password').value;
+            const msg = document.getElementById('msg');
+            const btn = document.getElementById('verify-btn');
+
+            if(newPass !== confPass) {
+                msg.textContent = "Passwords do not match!";
+                msg.className = "error-msg";
+                return;
+            }
+
+            btn.innerHTML = 'Updating...'; btn.disabled = true;
+            msg.classList.add('hidden');
+
+            // Send request to Google Sheet to set password and verify
+            fetch(scriptURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ 
+                    action: "set_password", 
+                    email: userEmail, 
+                    newPassword: newPass 
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    btn.classList.add('hidden');
+                    document.getElementById('new-password').classList.add('hidden');
+                    document.getElementById('confirm-password').classList.add('hidden');
+                    msg.textContent = "Password Set Successfully! Account Verified.";
+                    msg.className = "success-msg";
+                    document.getElementById('login-link').classList.remove('hidden');
+                } else {
+                    btn.innerHTML = 'Set Password & Verify'; btn.disabled = false;
+                    msg.textContent = data.message;
+                    msg.className = "error-msg";
+                }
+            })
+            .catch(err => {
+                btn.innerHTML = 'Set Password & Verify'; btn.disabled = false;
+                msg.textContent = "Network Error!";
+                msg.className = "error-msg";
+            });
+        });
+    </script>
+</body>
+</html>
