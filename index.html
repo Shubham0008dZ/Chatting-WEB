@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Clone - Email Auth</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="auth-screen" class="screen active">
+        <div class="glass-panel">
+            <h2><i class="fa-brands fa-whatsapp" style="color: #00a884;"></i> Welcome</h2>
+            <p>Enter your unique Email ID to continue</p>
+            <form id="auth-form">
+                <div class="input-group">
+                    <input type="email" id="email-input" placeholder="name@example.com" required>
+                </div>
+                <button type="submit" class="btn-primary">Send Confirmation Link</button>
+            </form>
+            <div id="auth-message" class="message hidden">
+                Confirmation link sent to your email! Please verify to login.
+                <br><br>
+                <button id="demo-verify-btn" class="btn-secondary">Demo: Auto Verify & Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="screen hidden">
+        <div class="app-container">
+            
+            <div id="sidebar" class="sidebar">
+                <header class="app-header">
+                    <div class="user-profile">
+                        <div class="avatar"><i class="fa-solid fa-user"></i></div>
+                    </div>
+                    <div class="header-icons">
+                        <i class="fa-solid fa-users"></i>
+                        <i class="fa-solid fa-circle-notch"></i>
+                        <i class="fa-solid fa-message"></i>
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </div>
+                </header>
+                <div class="search-bar">
+                    <div class="search-input">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" placeholder="Search or start new chat">
+                    </div>
+                </div>
+                <div class="chat-list">
+                    <div class="chat-item" onclick="openChat('Rahul', 'Hello! Kaise ho?')">
+                        <div class="avatar"><i class="fa-solid fa-user"></i></div>
+                        <div class="chat-details">
+                            <div class="chat-header">
+                                <h4>Rahul</h4>
+                                <span class="time">10:45 AM</span>
+                            </div>
+                            <p class="last-message">Hello! Kaise ho?</p>
+                        </div>
+                    </div>
+                    <div class="chat-item" onclick="openChat('College Group', 'Project update bhejo')">
+                        <div class="avatar"><i class="fa-solid fa-users"></i></div>
+                        <div class="chat-details">
+                            <div class="chat-header">
+                                <h4>College Group</h4>
+                                <span class="time">Yesterday</span>
+                            </div>
+                            <p class="last-message">Project update bhejo</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chat-area" class="chat-area">
+                <header class="app-header">
+                    <div class="chat-title">
+                        <i class="fa-solid fa-arrow-left back-btn" onclick="closeChat()"></i>
+                        <div class="avatar" style="width: 40px; height: 40px;"><i class="fa-solid fa-user"></i></div>
+                        <div class="user-info">
+                            <h4 id="active-chat-name">Select a chat</h4>
+                            <span class="status">online</span>
+                        </div>
+                    </div>
+                    <div class="header-icons">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </div>
+                </header>
+                
+                <div class="chat-messages" id="chat-messages">
+                    </div>
+
+                <div class="chat-input-area">
+                    <i class="fa-regular fa-face-smile"></i>
+                    <i class="fa-solid fa-paperclip"></i>
+                    <input type="text" id="message-input" placeholder="Type a message">
+                    <i class="fa-solid fa-microphone" id="mic-icon"></i>
+                    <i class="fa-solid fa-paper-plane hidden" id="send-icon" onclick="sendMessage()"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
