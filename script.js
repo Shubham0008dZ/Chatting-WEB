@@ -1,28 +1,89 @@
-// Auth Logic
+// ==========================================
+// CONFIGURATION
+// ==========================================
+// Your Google Apps Script Web App URL
+const scriptURL = 'https://script.google.com/macros/s/AKfycbwTbzIlQDwFuFh7pBFM_xsOHeJkNBa-nlNBEs__j0377rak2zHW-IwbEDgUuM-HOJx3/exec';
+
+// ==========================================
+// DOM ELEMENTS - AUTH
+// ==========================================
 const authForm = document.getElementById('auth-form');
 const authMessage = document.getElementById('auth-message');
 const demoVerifyBtn = document.getElementById('demo-verify-btn');
 const authScreen = document.getElementById('auth-screen');
 const appScreen = document.getElementById('app-screen');
+const emailInput = document.getElementById('email-input');
+const submitBtn = document.querySelector('#auth-form button[type="submit"]');
 
-// 1. User submits email
+// ==========================================
+// AUTHENTICATION & API LOGIC
+// ==========================================
+
+// 1. User submits email - Send to Google Sheets API
 authForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const email = document.getElementById('email-input').value;
+    const email = emailInput.value.trim();
+    
     if(email) {
-        // UI change: Hide button, show mock email sent message
-        document.querySelector('#auth-form button[type="submit"]').classList.add('hidden');
-        authMessage.classList.remove('hidden');
+        // UI Change: Show loading state so user knows process is running
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending...';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.7';
+
+        // Prepare Data Payload for Google Sheet
+        // Ye saare keys (email, action, device, etc.) sheet me apne aap columns ban jayenge
+        const payload = {
+            action: "register",
+            email: email,
+            device: /Mobi|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
+            browser: navigator.vendor || "Unknown",
+            status: "Pending Verification"
+        };
+
+        // Send POST request using text/plain to bypass Netlify/Google CORS issues
+        fetch(scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === 'success') {
+                console.log('Success: Data saved to Google Sheet!', data);
+                // UI change: Hide button, show success message
+                submitBtn.classList.add('hidden');
+                authMessage.classList.remove('hidden');
+            } else {
+                console.error('Backend Error:', data.message);
+                alert('Error processing request: ' + data.message);
+                resetSubmitButton();
+            }
+        })
+        .catch(error => {
+            console.error('Fetch/Network Error:', error);
+            alert('Network error. Please check your connection and try again.');
+            resetSubmitButton();
+        });
     }
 });
 
-// 2. Demo bypass for email verification click
+// Helper function to reset button on error
+function resetSubmitButton() {
+    submitBtn.innerHTML = 'Send Confirmation Link';
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+}
+
+// 2. Demo bypass for email verification click (Keeps previous logic intact)
 demoVerifyBtn.addEventListener('click', () => {
     authScreen.classList.remove('active');
     appScreen.classList.add('active');
 });
 
-// Chat Logic
+
+// ==========================================
+// DOM ELEMENTS - CHAT UI
+// ==========================================
 const appContainer = document.querySelector('.app-container');
 const chatMessages = document.getElementById('chat-messages');
 const activeChatName = document.getElementById('active-chat-name');
@@ -30,12 +91,16 @@ const msgInput = document.getElementById('message-input');
 const micIcon = document.getElementById('mic-icon');
 const sendIcon = document.getElementById('send-icon');
 
+// ==========================================
+// CHAT INTERACTIVITY LOGIC
+// ==========================================
+
 // 3. Open Chat (Responsive handling)
 function openChat(name, initialMsg) {
     activeChatName.textContent = name;
     appContainer.classList.add('chat-active'); // Hides sidebar on mobile
     
-    // Clear old mock messages and set new ones
+    // Clear old mock messages and set new ones with current time
     chatMessages.innerHTML = `
         <div class="msg received">
             ${initialMsg}
@@ -67,6 +132,7 @@ function sendMessage() {
 
     const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
+    // Append sent message to chat area
     const msgHTML = `
         <div class="msg sent">
             ${text}
@@ -75,15 +141,17 @@ function sendMessage() {
     `;
     
     chatMessages.insertAdjacentHTML('beforeend', msgHTML);
+    
+    // Reset input area
     msgInput.value = "";
     micIcon.classList.remove('hidden');
     sendIcon.classList.add('hidden');
     
-    // Auto scroll to bottom
+    // Auto scroll to bottom of chat
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Allow Enter key to send message
+// 7. Allow Enter key to send message
 msgInput.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
         sendMessage();
