@@ -65,7 +65,7 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
     const btn = document.getElementById('login-submit-btn');
     const msg = document.getElementById('login-msg');
 
-    btn.innerHTML = 'Logging in...'; btn.disabled = true;
+    btn.innerHTML = 'Authenticating...'; btn.disabled = true;
     msg.classList.add('hidden'); 
 
     fetch(scriptURL, {
@@ -75,7 +75,7 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
     })
     .then(res => res.json())
     .then(data => {
-        btn.innerHTML = 'Login'; btn.disabled = false;
+        btn.innerHTML = 'Secure Login'; btn.disabled = false;
         if(data.status === 'success') {
             currentUserEmail = email;
             currentUserName = data.username;
@@ -87,7 +87,7 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
             msg.classList.remove('hidden');
         }
     }).catch(() => {
-        btn.innerHTML = 'Login'; btn.disabled = false;
+        btn.innerHTML = 'Secure Login'; btn.disabled = false;
         msg.textContent = "Network Error!";
         msg.classList.remove('hidden');
     });
@@ -101,15 +101,44 @@ function logoutUser() {
 
 function loginSuccess() {
     document.getElementById('auth-screen').classList.remove('active');
-    document.getElementById('auth-screen').classList.add('hidden');
+    setTimeout(() => { document.getElementById('auth-screen').classList.add('hidden'); }, 500); // 0.5s animation sync
+    
     const appScreen = document.getElementById('app-screen');
     appScreen.classList.remove('hidden'); 
-    appScreen.classList.add('active');
+    setTimeout(() => { appScreen.classList.add('active'); }, 50);
     
     document.getElementById('my-profile-name').innerHTML = `<i class="fa-solid fa-circle-user"></i> <span>${currentUserName}</span>`;
     window.history.replaceState({}, document.title, "/");
     fetchUsersList();
+    setInterval(fetchUsersList, 5000); // Auto update user list & badges every 5s
 }
+
+// ==========================================
+// ATTACHMENT LOGIC (Base64 Encoding)
+// ==========================================
+document.getElementById('attachment-btn').addEventListener('click', () => {
+    document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', function() {
+    const file = this.files[0];
+    if(!file) return;
+    
+    // Size check to prevent crashing Google Sheets (Limit ~2MB)
+    if(file.size > 2000000) {
+        alert("File is too large. Please select an image under 2MB.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64Data = e.target.result;
+        // Prefixing with special flag to identify as image in chat
+        const imagePayload = "ATTACHMENT_IMAGE:" + base64Data;
+        sendAttachmentMessage(imagePayload); 
+    };
+    reader.readAsDataURL(file);
+});
 
 // ==========================================
 // EMOJI PICKER LOGIC
@@ -128,7 +157,6 @@ document.querySelector('emoji-picker').addEventListener('emoji-click', event => 
     msgInput.style.height = (msgInput.scrollHeight) + 'px';
 });
 
-// Close emoji picker when clicking outside
 document.addEventListener('click', (e) => {
     if (!emojiBtn.contains(e.target) && !emojiPickerContainer.contains(e.target)) {
         emojiPickerContainer.classList.add('hidden');
@@ -136,7 +164,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================================
-// FETCH USERS FOR SIDEBAR
+// FETCH USERS FOR SIDEBAR (Now with Unread Count)
 // ==========================================
 function fetchUsersList() {
     fetch(scriptURL, {
@@ -151,10 +179,17 @@ function fetchUsersList() {
         
         if(data.status === 'success' && data.data.length > 0) {
             data.data.forEach(user => {
+                // Determine if there is an unread badge
+                let badgeHtml = "";
+                if(user.unread > 0) {
+                    badgeHtml = `<span class="unread-badge">${user.unread}</span>`;
+                }
+
                 const item = `
                     <div class="chat-item" onclick="openChat('${user.email}', '${user.username}')">
                         <div class="avatar"><img src="https://ui-avatars.com/api/?name=${user.username}&background=random" alt="Av"></div>
                         <span>${user.username}</span>
+                        ${badgeHtml}
                     </div>
                 `;
                 listContainer.insertAdjacentHTML('beforeend', item);
@@ -184,6 +219,7 @@ function showUsersList() {
     requestsArea.classList.add('hidden');
     clearInterval(messagePollInterval);
     closeChatMobile(); 
+    fetchUsersList(); // Update badges when returning
 }
 
 function showRequests() {
@@ -207,7 +243,7 @@ function openChat(targetEmail, targetName) {
     activeChatStatus.textContent = "Connecting...";
     activeChatStatus.classList.remove('online');
     
-    chatMessages.innerHTML = '<p class="loading-text">Loading messages...</p>';
+    chatMessages.innerHTML = '<p class="loading-text">Loading secure connection...</p>';
     fetchMessages();
     
     if(messagePollInterval) clearInterval(messagePollInterval);
@@ -217,9 +253,9 @@ function openChat(targetEmail, targetName) {
 function closeChatMobile() {
     mainContainer.classList.remove('chat-active');
     clearInterval(messagePollInterval);
+    fetchUsersList(); // Refresh badges on close
 }
 
-// TEXTAREA RESIZE & ENTER LOGIC
 msgInput.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
@@ -233,11 +269,7 @@ msgInput.addEventListener('keydown', function (e) {
     }
 });
 
-// ==========================================
-// DATE PARSER FOR LAST ACTIVE STATUS
-// ==========================================
 function parseDDMMYYYY(dateStr) {
-    // format: DD-MM-YYYY HH:MM
     if(!dateStr || dateStr === "Offline") return null;
     try {
         const parts = dateStr.split(' ');
@@ -250,7 +282,7 @@ function parseDDMMYYYY(dateStr) {
 }
 
 // ==========================================
-// FETCH MESSAGES & RENDER
+// FETCH MESSAGES & RENDER (Added Attachment support)
 // ==========================================
 function fetchMessages() {
     if(!currentChatUserEmail) return;
@@ -258,30 +290,24 @@ function fetchMessages() {
     fetch(scriptURL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ 
-            action: "get_messages", 
-            email: currentUserEmail, 
-            targetEmail: currentChatUserEmail 
-        })
+        body: JSON.stringify({ action: "get_messages", email: currentUserEmail, targetEmail: currentChatUserEmail })
     })
     .then(res => res.json())
     .then(data => {
         if(data.status === 'success') {
             
-            // ONLINE STATUS LOGIC
+            // ONLINE STATUS
             if(data.targetStatus) {
                 const lastActiveDate = parseDDMMYYYY(data.targetStatus);
                 if(lastActiveDate) {
                     const now = new Date();
                     const diffMs = now - lastActiveDate;
-                    // If active within last 2 minutes (120000 ms), show Online
                     if(diffMs < 120000) {
                         activeChatStatus.textContent = "Online";
                         activeChatStatus.classList.add('online');
                     } else {
-                        // Show time from the timestamp
                         const timeStr = data.targetStatus.split(' ')[1];
-                        activeChatStatus.textContent = `last seen today at ${timeStr}`;
+                        activeChatStatus.textContent = `last seen at ${timeStr}`;
                         activeChatStatus.classList.remove('online');
                     }
                 } else {
@@ -292,7 +318,7 @@ function fetchMessages() {
 
             chatMessages.innerHTML = '';
             if(data.data.length === 0) {
-                chatMessages.innerHTML = `<div class="loading-text" style="background:var(--panel-bg); border-radius:10px; align-self:center; margin-top:20px;">🔒 Messages are end-to-end encrypted. Say Hi!</div>`;
+                chatMessages.innerHTML = `<div class="loading-text" style="background:var(--panel-bg); border-radius:10px; align-self:center; margin-top:20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">🔒 Messages are end-to-end encrypted. Say Hi!</div>`;
             } else {
                 data.data.forEach(msg => {
                     const isMe = msg.sender === currentUserEmail;
@@ -308,9 +334,18 @@ function fetchMessages() {
                         }
                     }
                     
+                    // Render Image if Base64 Attachment detected
+                    let contentHtml = "";
+                    if(msg.message.startsWith("ATTACHMENT_IMAGE:")) {
+                        const base64Str = msg.message.replace("ATTACHMENT_IMAGE:", "");
+                        contentHtml = `<img src="${base64Str}" class="msg-attachment" alt="Image">`;
+                    } else {
+                        contentHtml = `<div class="msg-content">${msg.message}</div>`;
+                    }
+                    
                     const html = `
                         <div class="${msgClass}">
-                            <div class="msg-content">${msg.message}</div>
+                            ${contentHtml}
                             <div class="msg-meta">
                                 <span>${timeOnly}</span>
                                 ${statusIcon}
@@ -326,14 +361,13 @@ function fetchMessages() {
 }
 
 // ==========================================
-// SEND MESSAGE
+// SEND TEXT MESSAGE (Preserved Logic)
 // ==========================================
 function sendMessage() {
     const text = msgInput.value.trim();
     if(text === "" || !currentChatUserEmail) return;
 
-    emojiPickerContainer.classList.add('hidden'); // Hide picker on send
-
+    emojiPickerContainer.classList.add('hidden'); 
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
     const tempHtml = `
@@ -354,37 +388,70 @@ function sendMessage() {
     fetch(scriptURL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ 
-            action: "send_message", 
-            email: currentUserEmail, 
-            receiver: currentChatUserEmail,
-            message: text
-        })
-    }).then(() => {
-        fetchMessages();
-    });
+        body: JSON.stringify({ action: "send_message", email: currentUserEmail, receiver: currentChatUserEmail, message: text })
+    }).then(() => { fetchMessages(); });
 }
 
 // ==========================================
-// INVITE LOGIC
+// SEND ATTACHMENT MESSAGE (New Function mapped to avoid modifying old logic)
+// ==========================================
+function sendAttachmentMessage(base64Payload) {
+    if(!currentChatUserEmail) return;
+
+    const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const tempImgData = base64Payload.replace("ATTACHMENT_IMAGE:", "");
+    
+    const tempHtml = `
+        <div class="msg sent" style="opacity:0.6">
+            <img src="${tempImgData}" class="msg-attachment" alt="Uploading...">
+            <div class="msg-meta">
+                <span>${timeNow}</span>
+                <i class="fa-solid fa-spinner fa-spin"></i>
+            </div>
+        </div>
+    `;
+    chatMessages.insertAdjacentHTML('beforeend', tempHtml);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    fetch(scriptURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: "send_message", email: currentUserEmail, receiver: currentChatUserEmail, message: base64Payload })
+    }).then(() => { fetchMessages(); });
+}
+
+// ==========================================
+// INVITE LOGIC (Modal trigger Explicitly Bound)
 // ==========================================
 const inviteModal = document.getElementById('invite-modal');
-function openInviteModal() { inviteModal.classList.remove('hidden'); }
-function closeInviteModal() { inviteModal.classList.add('hidden'); document.getElementById('invite-email').value = ""; }
+function openInviteModal() { 
+    inviteModal.classList.remove('hidden'); 
+    console.log("Invite Modal Opened");
+}
+function closeInviteModal() { 
+    inviteModal.classList.add('hidden'); 
+    document.getElementById('invite-email').value = ""; 
+}
+
+// Ensure the button explicitly fires
+document.querySelector('.btn-invite').addEventListener('click', openInviteModal);
 
 function sendInvite() {
     const targetEmail = document.getElementById('invite-email').value.trim();
     if(!targetEmail) return;
     
+    const btn = document.querySelector('.modal-actions .btn-primary');
+    btn.innerHTML = 'Sending...'; btn.disabled = true;
+
     fetch(scriptURL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ 
-            action: "invite", targetEmail: targetEmail, fromEmail: currentUserEmail, 
-            fromName: currentUserName, frontendUrl: frontendURL
-        })
+        body: JSON.stringify({ action: "invite", targetEmail: targetEmail, fromEmail: currentUserEmail, fromName: currentUserName, frontendUrl: frontendURL })
     }).then(() => {
-        alert("Invitation sent to " + targetEmail);
+        btn.innerHTML = 'Send Invite'; btn.disabled = false;
+        alert("Premium Invitation sent to " + targetEmail);
         closeInviteModal();
+    }).catch(() => {
+        btn.innerHTML = 'Send Invite'; btn.disabled = false;
     });
 }
