@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chat App - Premium</title>
+    <title>Chat App - Ultra Premium</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
@@ -11,7 +11,7 @@
 <body>
 
     <div id="auth-screen" class="screen active">
-        <div class="glass-panel">
+        <div class="glass-panel lux-shadow">
             <div class="auth-tabs">
                 <button class="tab-btn active" onclick="switchAuthTab('login')">Login</button>
                 <button class="tab-btn" onclick="switchAuthTab('register')">Register</button>
@@ -21,7 +21,7 @@
                 <h3>Welcome Back</h3>
                 <input type="email" id="login-email" placeholder="Your Email ID" required>
                 <input type="password" id="login-password" placeholder="Enter Password" required>
-                <button type="submit" class="btn-primary" id="login-submit-btn">Login</button>
+                <button type="submit" class="btn-primary" id="login-submit-btn">Secure Login</button>
                 <p id="login-msg" class="success-msg hidden"></p>
             </form>
 
@@ -35,7 +35,7 @@
             </form>
 
             <div id="verify-loader" class="hidden">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Verifying your account...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Authenticating...
             </div>
         </div>
     </div>
@@ -43,7 +43,7 @@
     <div id="app-screen" class="screen hidden">
         <div class="app-container" id="main-container">
             
-            <div class="sidebar">
+            <div class="sidebar glass-effect">
                 <div class="sidebar-header">
                     <div class="user-profile" id="my-profile-name">
                         <i class="fa-solid fa-circle-user"></i> <span>User</span>
@@ -52,7 +52,7 @@
                 </div>
                 
                 <div class="sidebar-search">
-                    <button class="btn-invite" onclick="openInviteModal()"><i class="fa-solid fa-user-plus"></i> Invite New User</button>
+                    <button class="btn-invite lux-btn" onclick="openInviteModal()"><i class="fa-solid fa-user-plus"></i> Invite New User</button>
                 </div>
                 
                 <div class="sidebar-menu">
@@ -67,13 +67,13 @@
 
             <div class="chat-area-container">
                 <div id="empty-state" class="empty-state">
-                    <div class="empty-icon"><i class="fa-brands fa-whatsapp"></i></div>
-                    <h2>WhatsApp Web Clone</h2>
-                    <p>Select a user from the sidebar to start a premium chat experience.</p>
+                    <div class="empty-icon glow-effect"><i class="fa-brands fa-whatsapp"></i></div>
+                    <h2>WhatsApp Premium Chat</h2>
+                    <p>End-to-End Encrypted. Select a user to experience smooth communication.</p>
                 </div>
 
                 <div id="chat-area" class="chat-area hidden">
-                    <header class="chat-header">
+                    <header class="chat-header glass-effect">
                         <div class="chat-title">
                             <i class="fa-solid fa-arrow-left back-btn" onclick="closeChatMobile()"></i>
                             <div class="avatar"><i class="fa-solid fa-user"></i></div>
@@ -83,6 +83,8 @@
                             </div>
                         </div>
                         <div class="header-icons">
+                            <i class="fa-solid fa-video"></i>
+                            <i class="fa-solid fa-phone"></i>
                             <i class="fa-solid fa-magnifying-glass"></i>
                             <i class="fa-solid fa-ellipsis-vertical"></i>
                         </div>
@@ -95,18 +97,20 @@
                         <emoji-picker class="dark"></emoji-picker>
                     </div>
                     
-                    <div class="chat-input-area">
+                    <div class="chat-input-area glass-effect">
                         <i class="fa-regular fa-face-smile" id="emoji-btn"></i>
-                        <i class="fa-solid fa-paperclip"></i>
+                        <i class="fa-solid fa-paperclip" id="attachment-btn"></i>
+                        <input type="file" id="file-input" class="hidden" accept="image/*">
+                        
                         <textarea id="message-input" rows="1" placeholder="Type a message"></textarea>
-                        <div class="send-btn-circle" id="send-icon" onclick="sendMessage()">
+                        <div class="send-btn-circle lux-btn" id="send-icon" onclick="sendMessage()">
                             <i class="fa-solid fa-paper-plane"></i>
                         </div>
                     </div>
                 </div>
 
                 <div id="requests-area" class="requests-area hidden">
-                    <header class="chat-header">
+                    <header class="chat-header glass-effect">
                         <div class="chat-title">
                             <i class="fa-solid fa-arrow-left back-btn" onclick="closeChatMobile()"></i>
                             <h4>Pending Invites</h4>
@@ -121,13 +125,13 @@
     </div>
 
     <div id="invite-modal" class="modal hidden">
-        <div class="modal-content glass-panel">
-            <h3>Invite a friend</h3>
-            <p>Enter email ID to send a chat request link</p>
+        <div class="modal-content glass-panel lux-shadow">
+            <h3>Invite a Connection</h3>
+            <p>Enter email ID to send a premium chat request link</p>
             <input type="email" id="invite-email" placeholder="friend@example.com">
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeInviteModal()">Cancel</button>
-                <button class="btn-primary" onclick="sendInvite()">Send Invite</button>
+                <button class="btn-primary lux-btn" onclick="sendInvite()">Send Invite</button>
             </div>
             <p id="invite-msg" class="success-msg hidden"></p>
         </div>
