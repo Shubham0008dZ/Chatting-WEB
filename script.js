@@ -50,9 +50,7 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
     fetch(scriptURL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ 
-            action: "register", email: email, username: username, frontendUrl: frontendURL
-        })
+        body: JSON.stringify({ action: "register", email: email, username: username, frontendUrl: frontendURL })
     }).then(() => {
         btn.classList.add('hidden');
         document.getElementById('reg-msg').classList.remove('hidden');
@@ -114,6 +112,30 @@ function loginSuccess() {
 }
 
 // ==========================================
+// EMOJI PICKER LOGIC
+// ==========================================
+const emojiBtn = document.getElementById('emoji-btn');
+const emojiPickerContainer = document.getElementById('emoji-picker-container');
+const msgInput = document.getElementById('message-input');
+
+emojiBtn.addEventListener('click', () => {
+    emojiPickerContainer.classList.toggle('hidden');
+});
+
+document.querySelector('emoji-picker').addEventListener('emoji-click', event => {
+    msgInput.value += event.detail.unicode;
+    msgInput.style.height = 'auto';
+    msgInput.style.height = (msgInput.scrollHeight) + 'px';
+});
+
+// Close emoji picker when clicking outside
+document.addEventListener('click', (e) => {
+    if (!emojiBtn.contains(e.target) && !emojiPickerContainer.contains(e.target)) {
+        emojiPickerContainer.classList.add('hidden');
+    }
+});
+
+// ==========================================
 // FETCH USERS FOR SIDEBAR
 // ==========================================
 function fetchUsersList() {
@@ -151,8 +173,8 @@ const chatArea = document.getElementById('chat-area');
 const requestsArea = document.getElementById('requests-area');
 const activeChatName = document.getElementById('active-chat-name');
 const chatMessages = document.getElementById('chat-messages');
-const msgInput = document.getElementById('message-input');
 const mainContainer = document.getElementById('main-container');
+const activeChatStatus = document.getElementById('active-chat-status');
 
 function showUsersList() {
     document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => el.classList.remove('active'));
@@ -182,6 +204,8 @@ function openChat(targetEmail, targetName) {
     
     activeChatName.textContent = targetName;
     currentChatUserEmail = targetEmail;
+    activeChatStatus.textContent = "Connecting...";
+    activeChatStatus.classList.remove('online');
     
     chatMessages.innerHTML = '<p class="loading-text">Loading messages...</p>';
     fetchMessages();
@@ -210,6 +234,22 @@ msgInput.addEventListener('keydown', function (e) {
 });
 
 // ==========================================
+// DATE PARSER FOR LAST ACTIVE STATUS
+// ==========================================
+function parseDDMMYYYY(dateStr) {
+    // format: DD-MM-YYYY HH:MM
+    if(!dateStr || dateStr === "Offline") return null;
+    try {
+        const parts = dateStr.split(' ');
+        const dParts = parts[0].split('-');
+        const tParts = parts[1].split(':');
+        return new Date(dParts[2], dParts[1] - 1, dParts[0], tParts[0], tParts[1]);
+    } catch(e) {
+        return null;
+    }
+}
+
+// ==========================================
 // FETCH MESSAGES & RENDER
 // ==========================================
 function fetchMessages() {
@@ -227,6 +267,29 @@ function fetchMessages() {
     .then(res => res.json())
     .then(data => {
         if(data.status === 'success') {
+            
+            // ONLINE STATUS LOGIC
+            if(data.targetStatus) {
+                const lastActiveDate = parseDDMMYYYY(data.targetStatus);
+                if(lastActiveDate) {
+                    const now = new Date();
+                    const diffMs = now - lastActiveDate;
+                    // If active within last 2 minutes (120000 ms), show Online
+                    if(diffMs < 120000) {
+                        activeChatStatus.textContent = "Online";
+                        activeChatStatus.classList.add('online');
+                    } else {
+                        // Show time from the timestamp
+                        const timeStr = data.targetStatus.split(' ')[1];
+                        activeChatStatus.textContent = `last seen today at ${timeStr}`;
+                        activeChatStatus.classList.remove('online');
+                    }
+                } else {
+                    activeChatStatus.textContent = "Offline";
+                    activeChatStatus.classList.remove('online');
+                }
+            }
+
             chatMessages.innerHTML = '';
             if(data.data.length === 0) {
                 chatMessages.innerHTML = `<div class="loading-text" style="background:var(--panel-bg); border-radius:10px; align-self:center; margin-top:20px;">🔒 Messages are end-to-end encrypted. Say Hi!</div>`;
@@ -239,13 +302,12 @@ function fetchMessages() {
                     let statusIcon = '';
                     if (isMe) {
                         if (msg.status === 'read') {
-                            statusIcon = '<i class="fa-solid fa-check-double" style="color:#53bdeb;"></i>'; // Blue ticks
+                            statusIcon = '<i class="fa-solid fa-check-double" style="color:#53bdeb;"></i>';
                         } else {
-                            statusIcon = '<i class="fa-solid fa-check"></i>'; // Gray tick
+                            statusIcon = '<i class="fa-solid fa-check"></i>'; 
                         }
                     }
                     
-                    // Separated content and meta for premium layout
                     const html = `
                         <div class="${msgClass}">
                             <div class="msg-content">${msg.message}</div>
@@ -270,9 +332,10 @@ function sendMessage() {
     const text = msgInput.value.trim();
     if(text === "" || !currentChatUserEmail) return;
 
+    emojiPickerContainer.classList.add('hidden'); // Hide picker on send
+
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     
-    // Premium optimistic UI rendering
     const tempHtml = `
         <div class="msg sent" style="opacity:0.8">
             <div class="msg-content">${text}</div>
