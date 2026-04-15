@@ -5,10 +5,9 @@ let currentUserEmail = "";
 let currentUserName = "";
 let currentChatUserEmail = ""; 
 let messagePollInterval = null; 
+let activeUsersCache = []; // For invite validation
+let lastMsgDataHash = ""; // For flicker fix
 
-// ==========================================
-// PERSISTENT LOGIN
-// ==========================================
 window.onload = function() {
     const urlParams = new URLSearchParams(window.location.search);
     const verifyEmail = urlParams.get('verify');
@@ -39,7 +38,6 @@ function switchAuthTab(tab) {
     }
 }
 
-// REGISTER
 document.getElementById('register-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const btn = document.getElementById('reg-submit-btn');
@@ -57,7 +55,6 @@ document.getElementById('register-form').addEventListener('submit', (e) => {
     });
 });
 
-// LOGIN
 document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value.trim();
@@ -101,21 +98,31 @@ function logoutUser() {
 
 function loginSuccess() {
     document.getElementById('auth-screen').classList.remove('active');
-    setTimeout(() => { document.getElementById('auth-screen').classList.add('hidden'); }, 500); // 0.5s animation sync
+    setTimeout(() => { document.getElementById('auth-screen').classList.add('hidden'); }, 500); 
     
     const appScreen = document.getElementById('app-screen');
     appScreen.classList.remove('hidden'); 
     setTimeout(() => { appScreen.classList.add('active'); }, 50);
     
-    document.getElementById('my-profile-name').innerHTML = `<i class="fa-solid fa-circle-user"></i> <span>${currentUserName}</span>`;
+    // Redirect to settings when profile is clicked
+    document.getElementById('my-profile-name').onclick = () => {
+        window.location.href = 'settings.html';
+    };
+
+    // Load DP from backend globally
+    fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: "get_settings", email: currentUserEmail }) })
+    .then(res => res.json()).then(data => {
+        let dpSrc = `https://ui-avatars.com/api/?name=${currentUserName}&background=random`;
+        if(data.data && data.data.profile_pic) dpSrc = data.data.profile_pic;
+        document.getElementById('my-profile-name').innerHTML = `<img src="${dpSrc}" style="width:35px;height:35px;border-radius:50%;object-fit:cover;"> <span>${currentUserName}</span>`;
+    });
+
     window.history.replaceState({}, document.title, "/");
     fetchUsersList();
-    setInterval(fetchUsersList, 5000); // Auto update user list & badges every 5s
+    setInterval(fetchUsersList, 5000); 
 }
 
-// ==========================================
-// ATTACHMENT LOGIC (Base64 Encoding)
-// ==========================================
+// ATTACHMENT LOGIC
 document.getElementById('attachment-btn').addEventListener('click', () => {
     document.getElementById('file-input').click();
 });
@@ -123,49 +130,29 @@ document.getElementById('attachment-btn').addEventListener('click', () => {
 document.getElementById('file-input').addEventListener('change', function() {
     const file = this.files[0];
     if(!file) return;
-    
-    // Size check to prevent crashing Google Sheets (Limit ~2MB)
-    if(file.size > 2000000) {
-        alert("File is too large. Please select an image under 2MB.");
-        return;
-    }
+    if(file.size > 2000000) { alert("File is too large. Limit is 2MB."); return; }
 
     const reader = new FileReader();
     reader.onload = function(e) {
-        const base64Data = e.target.result;
-        // Prefixing with special flag to identify as image in chat
-        const imagePayload = "ATTACHMENT_IMAGE:" + base64Data;
-        sendAttachmentMessage(imagePayload); 
+        sendAttachmentMessage("ATTACHMENT_IMAGE:" + e.target.result); 
     };
     reader.readAsDataURL(file);
 });
 
-// ==========================================
-// EMOJI PICKER LOGIC
-// ==========================================
+// EMOJI PICKER
 const emojiBtn = document.getElementById('emoji-btn');
 const emojiPickerContainer = document.getElementById('emoji-picker-container');
 const msgInput = document.getElementById('message-input');
 
-emojiBtn.addEventListener('click', () => {
-    emojiPickerContainer.classList.toggle('hidden');
-});
-
+emojiBtn.addEventListener('click', () => { emojiPickerContainer.classList.toggle('hidden'); });
 document.querySelector('emoji-picker').addEventListener('emoji-click', event => {
     msgInput.value += event.detail.unicode;
-    msgInput.style.height = 'auto';
-    msgInput.style.height = (msgInput.scrollHeight) + 'px';
 });
-
 document.addEventListener('click', (e) => {
-    if (!emojiBtn.contains(e.target) && !emojiPickerContainer.contains(e.target)) {
-        emojiPickerContainer.classList.add('hidden');
-    }
+    if (!emojiBtn.contains(e.target) && !emojiPickerContainer.contains(e.target)) { emojiPickerContainer.classList.add('hidden'); }
 });
 
-// ==========================================
-// FETCH USERS FOR SIDEBAR (Now with Unread Count)
-// ==========================================
+// GET USERS (With Unread Counts & DP)
 function fetchUsersList() {
     fetch(scriptURL, {
         method: 'POST',
@@ -178,16 +165,15 @@ function fetchUsersList() {
         listContainer.innerHTML = ''; 
         
         if(data.status === 'success' && data.data.length > 0) {
-            data.data.forEach(user => {
-                // Determine if there is an unread badge
-                let badgeHtml = "";
-                if(user.unread > 0) {
-                    badgeHtml = `<span class="unread-badge">${user.unread}</span>`;
-                }
+            activeUsersCache = data.data.map(u => u.email); // Store for Invite Validation
 
+            data.data.forEach(user => {
+                let badgeHtml = user.unread > 0 ? `<span class="unread-badge">${user.unread}</span>` : "";
+                const dpSrc = user.profile_pic ? user.profile_pic : `https://ui-avatars.com/api/?name=${user.username}&background=random`;
+                
                 const item = `
-                    <div class="chat-item" onclick="openChat('${user.email}', '${user.username}')">
-                        <div class="avatar"><img src="https://ui-avatars.com/api/?name=${user.username}&background=random" alt="Av"></div>
+                    <div class="chat-item" onclick="openChat('${user.email}', '${user.username}', '${dpSrc}')">
+                        <div class="avatar"><img src="${dpSrc}" alt="DP"></div>
                         <span>${user.username}</span>
                         ${badgeHtml}
                     </div>
@@ -200,9 +186,7 @@ function fetchUsersList() {
     });
 }
 
-// ==========================================
 // CHAT UI CONTROLS
-// ==========================================
 const emptyState = document.getElementById('empty-state');
 const chatArea = document.getElementById('chat-area');
 const requestsArea = document.getElementById('requests-area');
@@ -214,35 +198,27 @@ const activeChatStatus = document.getElementById('active-chat-status');
 function showUsersList() {
     document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar-menu .menu-item')[0].classList.add('active');
-    emptyState.classList.remove('hidden');
-    chatArea.classList.add('hidden');
-    requestsArea.classList.add('hidden');
-    clearInterval(messagePollInterval);
-    closeChatMobile(); 
-    fetchUsersList(); // Update badges when returning
+    emptyState.classList.remove('hidden'); chatArea.classList.add('hidden'); requestsArea.classList.add('hidden');
+    clearInterval(messagePollInterval); closeChatMobile(); fetchUsersList(); 
 }
 
 function showRequests() {
     document.querySelectorAll('.sidebar-menu .menu-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar-menu .menu-item')[1].classList.add('active');
-    emptyState.classList.add('hidden');
-    chatArea.classList.add('hidden');
-    requestsArea.classList.remove('hidden');
-    clearInterval(messagePollInterval);
-    mainContainer.classList.add('chat-active'); 
+    emptyState.classList.add('hidden'); chatArea.classList.add('hidden'); requestsArea.classList.remove('hidden');
+    clearInterval(messagePollInterval); mainContainer.classList.add('chat-active'); 
 }
 
-function openChat(targetEmail, targetName) {
-    emptyState.classList.add('hidden');
-    requestsArea.classList.add('hidden');
-    chatArea.classList.remove('hidden');
+function openChat(targetEmail, targetName, targetDp) {
+    emptyState.classList.add('hidden'); requestsArea.classList.add('hidden'); chatArea.classList.remove('hidden');
     mainContainer.classList.add('chat-active');
     
     activeChatName.textContent = targetName;
     currentChatUserEmail = targetEmail;
     activeChatStatus.textContent = "Connecting...";
-    activeChatStatus.classList.remove('online');
+    document.querySelector('.chat-title .avatar').innerHTML = `<img src="${targetDp}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     
+    lastMsgDataHash = ""; // Reset flicker block for new chat
     chatMessages.innerHTML = '<p class="loading-text">Loading secure connection...</p>';
     fetchMessages();
     
@@ -250,40 +226,22 @@ function openChat(targetEmail, targetName) {
     messagePollInterval = setInterval(fetchMessages, 3000);
 }
 
-function closeChatMobile() {
-    mainContainer.classList.remove('chat-active');
-    clearInterval(messagePollInterval);
-    fetchUsersList(); // Refresh badges on close
-}
-
-msgInput.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = (this.scrollHeight) + 'px';
-});
+function closeChatMobile() { mainContainer.classList.remove('chat-active'); clearInterval(messagePollInterval); fetchUsersList(); }
 
 msgInput.addEventListener('keydown', function (e) {
     const isMobile = window.innerWidth <= 768;
-    if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
-        e.preventDefault(); 
-        sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile) { e.preventDefault(); sendMessage(); }
 });
 
 function parseDDMMYYYY(dateStr) {
     if(!dateStr || dateStr === "Offline") return null;
     try {
-        const parts = dateStr.split(' ');
-        const dParts = parts[0].split('-');
-        const tParts = parts[1].split(':');
-        return new Date(dParts[2], dParts[1] - 1, dParts[0], tParts[0], tParts[1]);
-    } catch(e) {
-        return null;
-    }
+        const p = dateStr.split(' '); const d = p[0].split('-'); const t = p[1].split(':');
+        return new Date(d[2], d[1] - 1, d[0], t[0], t[1]);
+    } catch(e) { return null; }
 }
 
-// ==========================================
-// FETCH MESSAGES & RENDER (Added Attachment support)
-// ==========================================
+// FETCH MESSAGES (FLICKER FIX APPLIED)
 function fetchMessages() {
     if(!currentChatUserEmail) return;
 
@@ -295,30 +253,27 @@ function fetchMessages() {
     .then(res => res.json())
     .then(data => {
         if(data.status === 'success') {
-            
-            // ONLINE STATUS
             if(data.targetStatus) {
-                const lastActiveDate = parseDDMMYYYY(data.targetStatus);
-                if(lastActiveDate) {
-                    const now = new Date();
-                    const diffMs = now - lastActiveDate;
-                    if(diffMs < 120000) {
-                        activeChatStatus.textContent = "Online";
-                        activeChatStatus.classList.add('online');
-                    } else {
-                        const timeStr = data.targetStatus.split(' ')[1];
-                        activeChatStatus.textContent = `last seen at ${timeStr}`;
-                        activeChatStatus.classList.remove('online');
-                    }
+                const lastDate = parseDDMMYYYY(data.targetStatus);
+                if(lastDate && (new Date() - lastDate < 120000)) {
+                    activeChatStatus.textContent = "Online"; activeChatStatus.classList.add('online');
                 } else {
-                    activeChatStatus.textContent = "Offline";
+                    activeChatStatus.textContent = lastDate ? `last seen at ${data.targetStatus.split(' ')[1]}` : "Offline";
                     activeChatStatus.classList.remove('online');
                 }
             }
 
+            // FLICKER FIX: Compare stringified data. If identical to last render, DO NOT re-render HTML
+            const currentHash = JSON.stringify(data.data);
+            if(currentHash === lastMsgDataHash) return; 
+            lastMsgDataHash = currentHash; // Update hash
+
+            // Record scroll position before modifying innerHTML
+            const isScrolledToBottom = chatMessages.scrollHeight - chatMessages.clientHeight <= chatMessages.scrollTop + 50;
+
             chatMessages.innerHTML = '';
             if(data.data.length === 0) {
-                chatMessages.innerHTML = `<div class="loading-text" style="background:var(--panel-bg); border-radius:10px; align-self:center; margin-top:20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">🔒 Messages are end-to-end encrypted. Say Hi!</div>`;
+                chatMessages.innerHTML = `<div class="loading-text" style="background:var(--panel-bg); border-radius:10px; align-self:center; margin-top:20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">🔒 End-to-end encrypted. Say Hi!</div>`;
             } else {
                 data.data.forEach(msg => {
                     const isMe = msg.sender === currentUserEmail;
@@ -326,119 +281,62 @@ function fetchMessages() {
                     const timeOnly = msg.timestamp.split(' ')[1]; 
                     
                     let statusIcon = '';
-                    if (isMe) {
-                        if (msg.status === 'read') {
-                            statusIcon = '<i class="fa-solid fa-check-double" style="color:#53bdeb;"></i>';
-                        } else {
-                            statusIcon = '<i class="fa-solid fa-check"></i>'; 
-                        }
-                    }
+                    if (isMe) { statusIcon = msg.status === 'read' ? '<i class="fa-solid fa-check-double" style="color:#53bdeb;"></i>' : '<i class="fa-solid fa-check"></i>'; }
                     
-                    // Render Image if Base64 Attachment detected
-                    let contentHtml = "";
-                    if(msg.message.startsWith("ATTACHMENT_IMAGE:")) {
-                        const base64Str = msg.message.replace("ATTACHMENT_IMAGE:", "");
-                        contentHtml = `<img src="${base64Str}" class="msg-attachment" alt="Image">`;
-                    } else {
-                        contentHtml = `<div class="msg-content">${msg.message}</div>`;
-                    }
+                    let contentHtml = msg.message.startsWith("ATTACHMENT_IMAGE:") 
+                        ? `<img src="${msg.message.replace("ATTACHMENT_IMAGE:", "")}" class="msg-attachment" alt="Image">` 
+                        : `<div class="msg-content">${msg.message}</div>`;
                     
-                    const html = `
-                        <div class="${msgClass}">
-                            ${contentHtml}
-                            <div class="msg-meta">
-                                <span>${timeOnly}</span>
-                                ${statusIcon}
-                            </div>
-                        </div>
-                    `;
-                    chatMessages.insertAdjacentHTML('beforeend', html);
+                    chatMessages.insertAdjacentHTML('beforeend', `<div class="${msgClass}">${contentHtml}<div class="msg-meta"><span>${timeOnly}</span>${statusIcon}</div></div>`);
                 });
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                // Only auto-scroll if user was already at the bottom (prevents jumping while reading history)
+                if(isScrolledToBottom) { chatMessages.scrollTop = chatMessages.scrollHeight; }
             }
         }
     });
 }
 
-// ==========================================
-// SEND TEXT MESSAGE (Preserved Logic)
-// ==========================================
 function sendMessage() {
     const text = msgInput.value.trim();
     if(text === "" || !currentChatUserEmail) return;
 
     emojiPickerContainer.classList.add('hidden'); 
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
-    const tempHtml = `
-        <div class="msg sent" style="opacity:0.8">
-            <div class="msg-content">${text}</div>
-            <div class="msg-meta">
-                <span>${timeNow}</span>
-                <i class="fa-regular fa-clock"></i>
-            </div>
-        </div>
-    `;
-    chatMessages.insertAdjacentHTML('beforeend', tempHtml);
+    chatMessages.insertAdjacentHTML('beforeend', `<div class="msg sent" style="opacity:0.8"><div class="msg-content">${text}</div><div class="msg-meta"><span>${timeNow}</span><i class="fa-regular fa-clock"></i></div></div>`);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     msgInput.value = "";
-    msgInput.style.height = 'auto';
-
-    fetch(scriptURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: "send_message", email: currentUserEmail, receiver: currentChatUserEmail, message: text })
-    }).then(() => { fetchMessages(); });
+    fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: "send_message", email: currentUserEmail, receiver: currentChatUserEmail, message: text }) })
+    .then(() => { lastMsgDataHash = ""; fetchMessages(); }); // Force refresh
 }
 
-// ==========================================
-// SEND ATTACHMENT MESSAGE (New Function mapped to avoid modifying old logic)
-// ==========================================
 function sendAttachmentMessage(base64Payload) {
     if(!currentChatUserEmail) return;
-
     const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const tempImgData = base64Payload.replace("ATTACHMENT_IMAGE:", "");
-    
-    const tempHtml = `
-        <div class="msg sent" style="opacity:0.6">
-            <img src="${tempImgData}" class="msg-attachment" alt="Uploading...">
-            <div class="msg-meta">
-                <span>${timeNow}</span>
-                <i class="fa-solid fa-spinner fa-spin"></i>
-            </div>
-        </div>
-    `;
-    chatMessages.insertAdjacentHTML('beforeend', tempHtml);
+    chatMessages.insertAdjacentHTML('beforeend', `<div class="msg sent" style="opacity:0.6"><img src="${base64Payload.replace("ATTACHMENT_IMAGE:", "")}" class="msg-attachment"><div class="msg-meta"><span>${timeNow}</span><i class="fa-solid fa-spinner fa-spin"></i></div></div>`);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    fetch(scriptURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: "send_message", email: currentUserEmail, receiver: currentChatUserEmail, message: base64Payload })
-    }).then(() => { fetchMessages(); });
+    fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: "send_message", email: currentUserEmail, receiver: currentChatUserEmail, message: base64Payload }) })
+    .then(() => { lastMsgDataHash = ""; fetchMessages(); });
 }
 
-// ==========================================
-// INVITE LOGIC (Modal trigger Explicitly Bound)
-// ==========================================
+// INVITE LOGIC (With Validation)
 const inviteModal = document.getElementById('invite-modal');
-function openInviteModal() { 
-    inviteModal.classList.remove('hidden'); 
-    console.log("Invite Modal Opened");
-}
-function closeInviteModal() { 
-    inviteModal.classList.add('hidden'); 
-    document.getElementById('invite-email').value = ""; 
-}
+function openInviteModal() { inviteModal.classList.remove('hidden'); }
+function closeInviteModal() { inviteModal.classList.add('hidden'); document.getElementById('invite-email').value = ""; }
 
-// Ensure the button explicitly fires
 document.querySelector('.btn-invite').addEventListener('click', openInviteModal);
 
 function sendInvite() {
     const targetEmail = document.getElementById('invite-email').value.trim();
     if(!targetEmail) return;
+
+    // VALIDATION: Check if user already added
+    if(activeUsersCache.includes(targetEmail)) {
+        alert("This user is already in your Active Users list!");
+        return;
+    }
     
     const btn = document.querySelector('.modal-actions .btn-primary');
     btn.innerHTML = 'Sending...'; btn.disabled = true;
@@ -451,7 +349,5 @@ function sendInvite() {
         btn.innerHTML = 'Send Invite'; btn.disabled = false;
         alert("Premium Invitation sent to " + targetEmail);
         closeInviteModal();
-    }).catch(() => {
-        btn.innerHTML = 'Send Invite'; btn.disabled = false;
     });
 }
