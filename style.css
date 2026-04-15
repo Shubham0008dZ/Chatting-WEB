@@ -1,5 +1,5 @@
 :root {
-    --bg-dark: #0a1014; /* Deep premium dark */
+    --bg-dark: #0a1014; 
     --panel-bg: #111b21;
     --hover-bg: #202c33;
     --primary: #00a884; 
@@ -48,7 +48,7 @@ body, html { height: 100dvh; background-color: var(--bg-dark); color: var(--text
 .user-profile { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 17px; }
 .user-profile i { font-size: 28px; color: var(--primary); }
 .logout-btn { cursor: pointer; color: var(--text-secondary); font-size: 20px; transition: all 0.5s ease; }
-.logout-btn:hover { color: #f28b82; transform: scale(1.1); }
+.logout-btn:hover { color: var(--primary); transform: scale(1.1); }
 
 .sidebar-search { padding: 15px; border-bottom: 1px solid var(--border-color); }
 .btn-invite { width: 100%; background: rgba(0, 168, 132, 0.1); color: var(--primary); border: 1px solid rgba(0, 168, 132, 0.2); padding: 14px; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 8px; }
@@ -65,9 +65,17 @@ body, html { height: 100dvh; background-color: var(--bg-dark); color: var(--text
 .chat-item:hover .avatar { border-color: var(--primary); }
 .chat-item .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .chat-item span { font-size: 16px; font-weight: 500; }
-
-/* UNREAD BADGE STYLING */
 .unread-badge { position: absolute; right: 20px; background: var(--primary); color: #000; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 20px; box-shadow: 0 2px 10px var(--primary-glow); animation: fadeIn 0.5s ease; }
+
+/* Status Layout Features */
+#status-screen { display: flex; flex-direction: row; width: 100%; height: 100dvh; }
+.status-sidebar { width: 30%; min-width: 320px; max-width: 420px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--panel-bg); }
+.status-viewer-area { flex: 1; background: #000; display: flex; justify-content: center; align-items: center; position: relative; }
+.status-item { display: flex; align-items: center; padding: 15px 20px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); gap: 15px; transition: 0.3s; }
+.status-item:hover { background: var(--hover-bg); }
+.status-ring { border: 2px solid var(--primary); padding: 2px; border-radius: 50%; }
+.status-display-img { max-width: 100%; max-height: 90vh; border-radius: 12px; box-shadow: 0 0 25px rgba(0,0,0,0.8); }
+.section-title { color: var(--text-secondary); font-size: 14px; margin-bottom: 10px; margin-top: 15px; font-weight: 500;}
 
 /* Main Chat Area */
 .chat-area-container { flex: 1; display: flex; flex-direction: column; position: relative; background: #0b141a url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: multiply; opacity: 0.98; height: 100dvh; overflow: hidden; }
@@ -118,10 +126,10 @@ body, html { height: 100dvh; background-color: var(--bg-dark); color: var(--text
 
 /* RESPONSIVE LAYOUT */
 @media screen and (max-width: 768px) {
-    .sidebar { width: 100%; min-width: 100%; height: 100dvh; }
-    .chat-area-container { display: none; width: 100%; height: 100dvh; }
-    .app-container.chat-active .sidebar { display: none; }
-    .app-container.chat-active .chat-area-container { display: flex; }
+    .sidebar, .status-sidebar { width: 100%; min-width: 100%; height: 100dvh; }
+    .chat-area-container, .status-viewer-area { display: none; width: 100%; height: 100dvh; }
+    .app-container.chat-active .sidebar, #status-screen.viewing-active .status-sidebar { display: none; }
+    .app-container.chat-active .chat-area-container, #status-screen.viewing-active .status-viewer-area { display: flex; }
     .back-btn { display: block; }
     .chat-messages { padding: 20px 10px; }
     .msg { max-width: 85%; } 
