@@ -10,9 +10,7 @@ window.onload = function() {
     fetchUserSettings();
 };
 
-function goBackToChat() {
-    window.location.href = 'index.html';
-}
+function goBackToChat() { window.location.href = 'index.html'; }
 
 function logoutUser() {
     localStorage.removeItem('chatUserEmail');
@@ -27,15 +25,12 @@ function openTab(tabId, element) {
     if(element) {
         document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
         element.classList.add('active');
-        
-        // For mobile: hide sidebar when a tab is clicked
         if(window.innerWidth <= 768) {
             document.querySelector('.settings-sidebar').classList.add('hide-mobile');
         }
     }
 }
 
-// Fetch existing data
 function fetchUserSettings() {
     fetch(scriptURL, {
         method: 'POST',
@@ -55,7 +50,6 @@ function fetchUserSettings() {
             document.getElementById('sidebar-dp').src = dpSrc;
             document.getElementById('main-dp-preview').src = dpSrc;
             
-            // Apply toggles if they exist in JSON
             if(user.privacy_settings) {
                 try { const p = JSON.parse(user.privacy_settings); document.getElementById('toggle-read-receipts').checked = p.readReceipts; } catch(e){}
             }
@@ -72,20 +66,34 @@ function enableEdit(id) {
     el.focus();
 }
 
-// DP Upload Logic
+// BUG FIXED: Image Compression Added to prevent Payload Overflow
 let uploadedBase64Dp = null;
 function triggerDpUpload() { document.getElementById('dp-upload-input').click(); }
 
 document.getElementById('dp-upload-input').addEventListener('change', function() {
     const file = this.files[0];
     if(!file) return;
-    if(file.size > 1000000) { alert("Please select an image smaller than 1MB for profile pic."); return; }
     
     const reader = new FileReader();
     reader.onload = function(e) {
-        uploadedBase64Dp = e.target.result;
-        document.getElementById('main-dp-preview').src = uploadedBase64Dp;
-        document.getElementById('sidebar-dp').src = uploadedBase64Dp;
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            // Resize image dynamically to prevent crashes
+            const MAX_WIDTH = 250; 
+            const scaleSize = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleSize;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Compress to JPEG 70% quality
+            uploadedBase64Dp = canvas.toDataURL('image/jpeg', 0.7);
+            document.getElementById('main-dp-preview').src = uploadedBase64Dp;
+            document.getElementById('sidebar-dp').src = uploadedBase64Dp;
+        };
+        img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 });
@@ -99,51 +107,34 @@ function saveProfile() {
         email: currentUserEmail,
         username: document.getElementById('setting-name').value,
         about: document.getElementById('setting-about').value,
-        profile_pic: uploadedBase64Dp // Will be null if not changed
+        profile_pic: uploadedBase64Dp 
     };
 
     fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json())
     .then(data => {
         btn.innerHTML = 'Save Changes'; btn.disabled = false;
-        alert("Profile Updated!");
+        alert("Profile Updated Successfully!");
         localStorage.setItem('chatUserName', payload.username);
         fetchUserSettings();
+    }).catch(err => {
+        // Robust Error Fallback
+        btn.innerHTML = 'Save Changes'; btn.disabled = false;
+        alert("Network Error! Try a smaller image.");
     });
 }
 
 function savePrivacy() {
-    const payload = {
-        action: "update_settings_json",
-        email: currentUserEmail,
-        column: "privacy_settings",
-        dataObj: JSON.stringify({ readReceipts: document.getElementById('toggle-read-receipts').checked })
-    };
+    const payload = { action: "update_settings_json", email: currentUserEmail, column: "privacy_settings", dataObj: JSON.stringify({ readReceipts: document.getElementById('toggle-read-receipts').checked }) };
     fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }).then(()=>alert('Privacy Saved'));
 }
 
 function saveChatSettings() {
-    const payload = {
-        action: "update_settings_json",
-        email: currentUserEmail,
-        column: "chat_settings",
-        dataObj: JSON.stringify({ 
-            spellCheck: document.getElementById('toggle-spellcheck').checked,
-            enterIsSend: document.getElementById('toggle-enter-send').checked
-        })
-    };
+    const payload = { action: "update_settings_json", email: currentUserEmail, column: "chat_settings", dataObj: JSON.stringify({ spellCheck: document.getElementById('toggle-spellcheck').checked, enterIsSend: document.getElementById('toggle-enter-send').checked }) };
     fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }).then(()=>alert('Chat Settings Saved'));
 }
 
 function saveNotificationSettings() {
-    const payload = {
-        action: "update_settings_json",
-        email: currentUserEmail,
-        column: "notification_settings",
-        dataObj: JSON.stringify({ 
-            showPreviews: document.getElementById('toggle-previews').checked,
-            playSounds: document.getElementById('toggle-sounds').checked
-        })
-    };
+    const payload = { action: "update_settings_json", email: currentUserEmail, column: "notification_settings", dataObj: JSON.stringify({ showPreviews: document.getElementById('toggle-previews').checked, playSounds: document.getElementById('toggle-sounds').checked }) };
     fetch(scriptURL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }).then(()=>alert('Notifications Saved'));
 }
