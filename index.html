@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chat App - Premium</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 </head>
 <body>
 
@@ -78,7 +79,7 @@
                             <div class="avatar"><i class="fa-solid fa-user"></i></div>
                             <div class="user-info">
                                 <h4 id="active-chat-name">Select a chat</h4>
-                                <span class="status">Online</span>
+                                <span class="status" id="active-chat-status">Connecting...</span>
                             </div>
                         </div>
                         <div class="header-icons">
@@ -90,8 +91,12 @@
                     <div class="chat-messages" id="chat-messages">
                         </div>
                     
+                    <div id="emoji-picker-container" class="hidden">
+                        <emoji-picker class="dark"></emoji-picker>
+                    </div>
+                    
                     <div class="chat-input-area">
-                        <i class="fa-regular fa-face-smile"></i>
+                        <i class="fa-regular fa-face-smile" id="emoji-btn"></i>
                         <i class="fa-solid fa-paperclip"></i>
                         <textarea id="message-input" rows="1" placeholder="Type a message"></textarea>
                         <div class="send-btn-circle" id="send-icon" onclick="sendMessage()">
